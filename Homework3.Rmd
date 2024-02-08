@@ -1,0 +1,104 @@
+---
+title: "Homework 3"
+author: "Tarun Manoharan"
+date: "2024-02-08"
+output: pdf_document
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60))
+```
+
+***
+```{r echo = FALSE, message = FALSE}
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+library(ggplot2)
+library(kableExtra)
+```
+
+## Problem 1
+```{r echo = FALSE}
+creatinine = read.csv("creatinine.csv")
+```
+
+### A)
+```{r echo = FALSE}
+model_crea = lm(creatclear~age, data = creatinine)
+crea_fifty = creatinine %>% mutate(cr_pred =  predict(model_crea, newdata = .))
+crea_fifty = crea_fifty %>% filter( age == 55)
+```
+
+The creatinine clearance for a person aged fifty five should be `r round(crea_fifty$cr_pred,2)`, I determined this by creating a linear regression model for everyone in the data set, then predicting the clearance for a person aged 55. 
+
+### B)
+```{r, echo = FALSE, comment=""}
+round(coef(model_crea),2)
+```
+The creatinine clearance rate changes with age by around -0.62 ml/minute per year. I determined this by finding the weight for age using the coef() function.
+
+### C)
+```{r echo = FALSE}
+
+crea_comp = creatinine %>% add_row(age = c(40,60), creatclear = c(135,112))%>%  mutate(cr_pred = predict(model_crea,newdata= .))
+crea_comp = filter(crea_comp, creatclear == 135|creatclear == 112) 
+comp1 = crea_comp[1,2] - crea_comp[1,3]
+comp2 = crea_comp[2,2] - crea_comp[2,3]
+
+```
+The creatinine clearance for a 40 year old with a rate of 135 than a 60 year old with a rate of 112, because the residual for the 40 year old is higher, this is because the predicted rate of the 40 year old is `r round(crea_comp[1,3],2)`, while the actual is `r crea_comp[1,2]` making the residual `r round(comp1,2)`, with the predicted, actual, and residual rate for the 60 year old is `r round(crea_comp[2,3],2)`, `r crea_comp[2,2]`, and `r round(comp2,2)` respectively. The residual was calculated with the formula, Residual = Actual - Predicted, and as such the 40 year old had a higher residual thus making their creatinine clearance for their age better.
+
+## Problem 2
+
+The beta of a stock is the percent change of that stock when compared to the overall market. If the market were to increase by 1 percent, then the stock would gain or lose by the beta amount. The size of the beta matters as well in indicating a stocks systematic risk, the average is a 1.0, anything above that is considered a volatile stock, and anything below that is considered more stable. The beta is calculated by dividing the return rate of an individual stock over a period of time by the return rate of the entire stock market in that same period of time, and then subtracting both the residual and intercept for that stock, as per the Capital Asset Pricing Model. The beta in terms of the linear regression model can be seen as the slope, which the slope is the rate of change, as these two are connected since the beta is used to determine the volatility of a stock, and it's rate of change. 
+
+```{r echo = FALSE}
+marketmodel = read.csv("marketmodel.csv")
+lm_aapl = lm(AAPL~SPY, data = marketmodel)
+lm_goog = lm(GOOG~SPY, data = marketmodel)
+lm_mrk = lm(MRK~SPY, data = marketmodel)
+lm_jnj = lm(JNJ~SPY, data = marketmodel)
+lm_wmt = lm(WMT~SPY, data = marketmodel)
+lm_tgt = lm(TGT~SPY, data = marketmodel)
+
+
+stock_tib = tibble("Ticker" = c("AAPL", "GOOG", "MRK", "JNJ", "WMT", "TGT"), "Intercept" = c(coef(lm_aapl)[1],coef(lm_goog)[1],coef(lm_mrk)[1],coef(lm_jnj)[1],coef(lm_wmt)[1],coef(lm_tgt)[1]), "Slope" = c(coef(lm_aapl)[2],coef(lm_goog)[2],coef(lm_mrk)[2],coef(lm_jnj)[2],coef(lm_wmt)[2],coef(lm_tgt)[2]), "R2" = c(summary(lm_aapl)$r.squared,summary(lm_goog)$r.squared,summary(lm_mrk)$r.squared,summary(lm_jnj)$r.squared,summary(lm_wmt)$r.squared,summary(lm_tgt)$r.squared))
+
+stock_tib = stock_tib %>% mutate(across(c("Slope"), round, 2))
+stock_tib = stock_tib %>% mutate(across(c("R2"), round, 3))
+
+col_names = c("Ticker", "Intercept", "Slope", "R\\textsuperscript{2}")
+kbl(stock_tib, booktabs = T, col.names = col_names, format = "latex",escape = FALSE) %>% kable_styling(full_width = T, latex_options = c("striped"))
+```
+The table shows the ticker for each stock which is the five digit code used to identify a stock, intercept or the alpha of the stock shows the initial return rate for the stock. The slope means the rate of change on the return rate of the stock, and the R^2^ is the coefficient of determination which shows the strength of how accurate the regression line is. 
+
+In conclusion according to the definition of beta the stock with the least amount of systematic risk is WMT or Walmart with 0.52, and the highest being AAPL or Apple with 1.07, this is because a higher beta means a higher volatility and in turn means a higher systematic risk.
+
+## Problem 3
+
+
+```{r echo = FALSE,fig.height = 6, fig.width = 10}
+covid = read.csv("covid.csv")
+countries = c("Spain" = "blue", "Italy" = "red")
+
+
+lm_italy = lm(log(deaths) ~ days_since_first_death, data = filter(covid,country == "Italy")) 
+lm_spain = lm(log(deaths) ~ days_since_first_death, data = filter(covid,country == "Spain")) 
+
+
+ggplot(filter(covid, country == "Italy")) + geom_line(aes(x = days_since_first_death, y = log(deaths), color = "Italy")) + geom_line(data = filter(covid, country == "Spain"),aes(x = days_since_first_death, y = log(deaths), color = "Spain")) + labs(title = "Daily Death Total by Days Since First Death by Country",x = "Days Since First Death", y = "Daily Death Total", color = "Legend") + scale_color_manual(values = countries) + theme_minimal()
+```
+
+The growth rate for Italy is `r round(coef(lm_italy)[2],3)` with the doubling time being `r round(70/coef(lm_italy)[2])`. The growth rate for Spain is `r round(coef(lm_spain)[2],3)` with the doubling time being `r round(70/coef(lm_spain)[2])`. The results of the two models show that although Italy had deaths for a longer amount of time, the deaths in Spain for the most part barring a few days had more deaths per day. As well using the growth rate and doubling time, Spain was increasingly more than Italy, while both increased in death total for most of the time. 
+
+## Problem 4.
+
+```{r echo = FALSE}
+milk = read.csv("milk.csv")
+
+lm_milk = lm(log(sales) ~ log(price), data = milk)
+coef_milk = round(coef(lm_milk)[2],2)
+```
+
+The estimated price elasticity demand for milk is -162%, which means that as the price increases by 1%, the amount of sales decreases by 162%, I determined this by fitting a regression model with the log of both price and sales, and extracting the slope coefficient which represents the price elasticity, which came out to be `r coef_milk`
